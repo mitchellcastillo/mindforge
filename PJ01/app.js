@@ -485,6 +485,7 @@ function renderEdges() {
     const to = getCenter(toNode);
 
     const onEdgeSelect = (event) => {
+      event.preventDefault();
       event.stopPropagation();
       selectEdge(edge.id, event.shiftKey);
       refreshInspector();
@@ -496,9 +497,12 @@ function renderEdges() {
     hitLine.setAttribute("y1", `${from.y}`);
     hitLine.setAttribute("x2", `${to.x}`);
     hitLine.setAttribute("y2", `${to.y}`);
-    hitLine.setAttribute("stroke", "transparent");
+    hitLine.setAttribute("stroke", edge.color);
+    hitLine.setAttribute("stroke-opacity", "0.001");
     hitLine.setAttribute("stroke-width", `${Math.max(12, edge.width + 8)}`);
     hitLine.setAttribute("class", "edge-hit");
+    hitLine.setAttribute("pointer-events", "stroke");
+    hitLine.addEventListener("pointerdown", onEdgeSelect);
     hitLine.addEventListener("click", onEdgeSelect);
     edgeLayer.appendChild(hitLine);
 
@@ -523,7 +527,9 @@ function renderEdges() {
       label.setAttribute("y", `${ty}`);
       label.setAttribute("class", "edge-label");
       label.setAttribute("text-anchor", "middle");
+      label.setAttribute("pointer-events", "all");
       label.textContent = edge.label;
+      label.addEventListener("pointerdown", onEdgeSelect);
       label.addEventListener("click", onEdgeSelect);
       edgeLayer.appendChild(label);
     }
