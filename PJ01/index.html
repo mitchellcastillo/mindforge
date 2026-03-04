@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MindForge - Mapa Mental</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <h1>MindForge</h1>
+        <div class="toolbar">
+          <div class="auth-cluster">
+            <span id="authStatus" class="auth-status">Modo local</span>
+            <button id="configureBackendBtn" class="btn">Configurar backend</button>
+            <button id="loginBtn" class="btn">Entrar</button>
+            <button id="logoutBtn" class="btn">Salir</button>
+          </div>
+          <label class="field compact">
+            <span>Mapa</span>
+            <select id="projectSelect"></select>
+          </label>
+          <button id="newProjectBtn" class="btn">Nuevo mapa</button>
+          <button id="renameProjectBtn" class="btn">Renombrar</button>
+          <button id="deleteProjectBtn" class="btn btn-danger">Eliminar mapa</button>
+          <button id="addNodeBtn" class="btn btn-primary">+ Nodo</button>
+          <button id="connectModeBtn" class="btn">Conectar nodos</button>
+          <button id="deleteSelectedBtn" class="btn btn-danger">Eliminar seleccionado</button>
+          <label class="field compact">
+            <span>Canvas</span>
+            <select id="canvasTypeSelect">
+              <option value="grid">Grid</option>
+              <option value="dots">Dots</option>
+              <option value="plain">Plano</option>
+            </select>
+          </label>
+          <button id="templateGalleryBtn" class="btn">Plantillas</button>
+        </div>
+      </header>
+
+      <main class="main-layout">
+        <section class="canvas-panel">
+          <div id="canvas" class="canvas canvas-grid">
+            <svg id="edgeLayer" class="edge-layer"></svg>
+            <div id="nodeLayer" class="node-layer"></div>
+          </div>
+        </section>
+
+        <aside class="inspector">
+          <h2>Inspector</h2>
+
+          <section class="inspector-section">
+            <h3>Nodo</h3>
+            <div class="field">
+              <label for="nodeTitleInput">Título</label>
+              <input id="nodeTitleInput" type="text" placeholder="Nombre del nodo" />
+            </div>
+            <div class="field">
+              <label for="nodeShapeSelect">Forma</label>
+              <select id="nodeShapeSelect">
+                <option value="rectangle">Rectángulo</option>
+                <option value="square">Cuadrado</option>
+                <option value="circle">Círculo</option>
+                <option value="line">Línea</option>
+              </select>
+            </div>
+            <div class="field two-col">
+              <div>
+                <label for="nodeFillInput">Relleno</label>
+                <input id="nodeFillInput" type="color" value="#f2f2f2" />
+              </div>
+              <div>
+                <label for="nodeStrokeInput">Borde</label>
+                <input id="nodeStrokeInput" type="color" value="#2d2d2d" />
+              </div>
+            </div>
+            <div class="field two-col">
+              <div>
+                <label for="nodeTextColorInput">Texto</label>
+                <input id="nodeTextColorInput" type="color" value="#111111" />
+              </div>
+              <div>
+                <label for="nodeBorderWidthInput">Grosor borde</label>
+                <input id="nodeBorderWidthInput" type="range" min="1" max="6" step="1" value="2" />
+              </div>
+            </div>
+            <div class="field two-col">
+              <div>
+                <label for="nodeIconInput">Icono</label>
+                <input id="nodeIconInput" type="text" maxlength="3" placeholder="💡" />
+              </div>
+              <div>
+                <label for="nodePrioritySelect">Prioridad</label>
+                <select id="nodePrioritySelect">
+                  <option value="normal">Normal</option>
+                  <option value="high">Alta</option>
+                  <option value="critical">Crítica</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="conditionalColorToggle">Color condicional por prioridad</label>
+              <select id="conditionalColorToggle">
+                <option value="off">Desactivado</option>
+                <option value="on">Activado</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="nodeNoteInput">Notas</label>
+              <textarea id="nodeNoteInput" rows="4" placeholder="Notas del nodo"></textarea>
+            </div>
+          </section>
+
+          <section class="inspector-section">
+            <h3>Conexión</h3>
+            <div class="field">
+              <label for="edgeLabelInput">Comentario de relación</label>
+              <input id="edgeLabelInput" type="text" placeholder="Ej: depende de" />
+            </div>
+            <div class="field two-col">
+              <div>
+                <label for="edgeStyleSelect">Estilo</label>
+                <select id="edgeStyleSelect">
+                  <option value="solid">Sólida</option>
+                  <option value="dashed">Punteada</option>
+                  <option value="dotted">Puntos</option>
+                </select>
+              </div>
+              <div>
+                <label for="edgeWidthInput">Grosor</label>
+                <input id="edgeWidthInput" type="range" min="1" max="8" step="1" value="2" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="edgeColorInput">Color línea</label>
+              <input id="edgeColorInput" type="color" value="#444444" />
+            </div>
+          </section>
+
+          <section class="inspector-section">
+            <h3>Paleta rápida</h3>
+            <div id="swatches" class="swatches"></div>
+          </section>
+
+          <section class="inspector-section">
+            <h3>Exportar / Compartir</h3>
+            <div class="export-grid">
+              <button class="btn" id="exportJsonBtn">JSON</button>
+              <button class="btn" id="exportSvgBtn">SVG</button>
+              <button class="btn" id="exportCsvBtn">CSV nodos</button>
+              <button class="btn" id="exportMdBtn">Markdown</button>
+              <button class="btn" id="exportPdfBtn">PDF</button>
+              <button class="btn" id="emailBtn">Enviar email</button>
+            </div>
+            <div class="field">
+              <label for="importInput">Importar JSON</label>
+              <input id="importInput" type="file" accept="application/json" />
+            </div>
+          </section>
+
+          <section class="inspector-section">
+            <h3>Plantillas</h3>
+            <div class="field">
+              <label for="templateNameInput">Guardar mapa actual como plantilla</label>
+              <input id="templateNameInput" type="text" placeholder="Nombre plantilla" />
+            </div>
+            <button id="saveTemplateBtn" class="btn">Guardar plantilla</button>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <dialog id="templateDialog" class="template-dialog">
+      <div class="dialog-content">
+        <h3>Galería de plantillas</h3>
+        <div id="templateGrid" class="template-grid"></div>
+        <button id="closeTemplateDialogBtn" class="btn">Cerrar</button>
+      </div>
+    </dialog>
+
+    <dialog id="backendDialog" class="template-dialog">
+      <div class="dialog-content">
+        <h3>Configurar Supabase</h3>
+        <div class="field">
+          <label for="supabaseUrlInput">Project URL</label>
+          <input id="supabaseUrlInput" type="text" placeholder="https://xxxx.supabase.co" />
+        </div>
+        <div class="field">
+          <label for="supabaseAnonKeyInput">Anon Public Key</label>
+          <input id="supabaseAnonKeyInput" type="text" placeholder="eyJ..." />
+        </div>
+        <div class="toolbar">
+          <button id="saveBackendConfigBtn" class="btn btn-primary">Guardar</button>
+          <button id="clearBackendConfigBtn" class="btn btn-danger">Limpiar</button>
+          <button id="closeBackendDialogBtn" class="btn">Cerrar</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
