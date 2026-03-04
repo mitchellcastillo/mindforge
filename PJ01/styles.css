@@ -202,6 +202,10 @@ h3 {
   cursor: pointer;
 }
 
+.edge-hit {
+  cursor: pointer;
+}
+
 .edge.selected {
   filter: drop-shadow(0 0 2px rgba(230, 126, 43, 0.9));
 }

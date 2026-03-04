@@ -58,6 +58,10 @@ Herramienta web de mapas mentales para brainstorming y organización de ideas.
 - `Cmd/Ctrl + V`: pegar selección (incluye conexiones internas).
 - `Cmd/Ctrl + A`: seleccionar todos los nodos.
 - Doble clic en nodo: editar título directamente en el nodo.
+- `Undo` / `Redo` con botones y atajos:
+  - `Cmd/Ctrl + Z`: deshacer
+  - `Cmd/Ctrl + Shift + Z` (o `Ctrl + Y`): rehacer
+- Selección de conexiones mejorada (clic en línea o etiqueta) y eliminación con `Delete`.
 
 ## Persistencia
 

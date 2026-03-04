@@ -23,6 +23,12 @@ const state = {
     user: null,
     ready: false,
   },
+  history: {
+    undoStack: [],
+    redoStack: [],
+    lastSnapshot: null,
+    suppress: false,
+  },
 };
 
 const palette = [
@@ -36,6 +42,8 @@ const edgeLayer = document.getElementById("edgeLayer");
 const canvas = document.getElementById("canvas");
 
 const addNodeBtn = document.getElementById("addNodeBtn");
+const undoBtn = document.getElementById("undoBtn");
+const redoBtn = document.getElementById("redoBtn");
 const authStatus = document.getElementById("authStatus");
 const configureBackendBtn = document.getElementById("configureBackendBtn");
 const loginBtn = document.getElementById("loginBtn");
@@ -264,6 +272,17 @@ function toggleNodeSelection(nodeId) {
   syncPrimarySelection();
 }
 
+function selectEdge(edgeId, additive = false) {
+  if (additive) {
+    const has = state.selectedEdgeIds.includes(edgeId);
+    state.selectedEdgeIds = has ? state.selectedEdgeIds.filter((id) => id !== edgeId) : [...state.selectedEdgeIds, edgeId];
+    state.selectedNodeIds = [];
+    syncPrimarySelection();
+    return;
+  }
+  setSingleEdgeSelection(edgeId);
+}
+
 function isFormField(el) {
   if (!(el instanceof HTMLElement)) return false;
   const tag = el.tagName.toLowerCase();
@@ -465,6 +484,24 @@ function renderEdges() {
     const from = getCenter(fromNode);
     const to = getCenter(toNode);
 
+    const onEdgeSelect = (event) => {
+      event.stopPropagation();
+      selectEdge(edge.id, event.shiftKey);
+      refreshInspector();
+      render();
+    };
+
+    const hitLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    hitLine.setAttribute("x1", `${from.x}`);
+    hitLine.setAttribute("y1", `${from.y}`);
+    hitLine.setAttribute("x2", `${to.x}`);
+    hitLine.setAttribute("y2", `${to.y}`);
+    hitLine.setAttribute("stroke", "transparent");
+    hitLine.setAttribute("stroke-width", `${Math.max(12, edge.width + 8)}`);
+    hitLine.setAttribute("class", "edge-hit");
+    hitLine.addEventListener("click", onEdgeSelect);
+    edgeLayer.appendChild(hitLine);
+
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
     line.setAttribute("x1", `${from.x}`);
     line.setAttribute("y1", `${from.y}`);
@@ -474,21 +511,8 @@ function renderEdges() {
     line.setAttribute("stroke-width", `${edge.width}`);
     const dash = getEdgeStrokeDash(edge.style);
     if (dash) line.setAttribute("stroke-dasharray", dash);
+    line.setAttribute("pointer-events", "none");
     line.setAttribute("class", `edge${state.selectedEdgeIds.includes(edge.id) ? " selected" : ""}`);
-    line.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (event.shiftKey) {
-        const has = state.selectedEdgeIds.includes(edge.id);
-        state.selectedEdgeIds = has ? state.selectedEdgeIds.filter((id) => id !== edge.id) : [...state.selectedEdgeIds, edge.id];
-        state.selectedNodeIds = [];
-        syncPrimarySelection();
-      } else {
-        setSingleEdgeSelection(edge.id);
-      }
-      refreshInspector();
-      render();
-    });
-
     edgeLayer.appendChild(line);
 
     if (edge.label?.trim()) {
@@ -500,19 +524,7 @@ function renderEdges() {
       label.setAttribute("class", "edge-label");
       label.setAttribute("text-anchor", "middle");
       label.textContent = edge.label;
-      label.addEventListener("click", (event) => {
-        event.stopPropagation();
-        if (event.shiftKey) {
-          const has = state.selectedEdgeIds.includes(edge.id);
-          state.selectedEdgeIds = has ? state.selectedEdgeIds.filter((id) => id !== edge.id) : [...state.selectedEdgeIds, edge.id];
-          state.selectedNodeIds = [];
-          syncPrimarySelection();
-        } else {
-          setSingleEdgeSelection(edge.id);
-        }
-        refreshInspector();
-        render();
-      });
+      label.addEventListener("click", onEdgeSelect);
       edgeLayer.appendChild(label);
     }
   }
@@ -545,9 +557,71 @@ function render() {
   canvas.classList.add(`canvas-${state.canvasType}`);
   canvasTypeSelect.value = state.canvasType;
   connectModeBtn.classList.toggle("active", state.mode === "connect");
+  updateHistoryButtons();
 
   renderEdges();
   renderNodes();
+}
+
+function mapSnapshotObject() {
+  return {
+    canvasType: state.canvasType,
+    nodes: state.nodes.map((node) => ({ ...node })),
+    edges: state.edges.map((edge) => ({ ...edge })),
+  };
+}
+
+function mapSnapshotString() {
+  return JSON.stringify(mapSnapshotObject());
+}
+
+function resetHistoryWithCurrentMap() {
+  state.history.undoStack = [];
+  state.history.redoStack = [];
+  state.history.lastSnapshot = mapSnapshotString();
+  updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  if (undoBtn) undoBtn.disabled = state.history.undoStack.length === 0;
+  if (redoBtn) redoBtn.disabled = state.history.redoStack.length === 0;
+}
+
+function applyMapSnapshot(snapshot) {
+  try {
+    const parsed = JSON.parse(snapshot);
+    loadMapIntoState(parsed);
+  } catch {
+    // Ignore invalid history snapshots
+  }
+}
+
+function undo() {
+  if (!state.history.undoStack.length) return;
+  const current = mapSnapshotString();
+  const previous = state.history.undoStack.pop();
+  state.history.redoStack.push(current);
+  state.history.suppress = true;
+  applyMapSnapshot(previous);
+  state.history.lastSnapshot = previous;
+  refreshInspector();
+  render();
+  persist();
+  state.history.suppress = false;
+}
+
+function redo() {
+  if (!state.history.redoStack.length) return;
+  const current = mapSnapshotString();
+  const next = state.history.redoStack.pop();
+  state.history.undoStack.push(current);
+  state.history.suppress = true;
+  applyMapSnapshot(next);
+  state.history.lastSnapshot = next;
+  refreshInspector();
+  render();
+  persist();
+  state.history.suppress = false;
 }
 
 function serializeMap() {
@@ -596,10 +670,27 @@ function loadMapIntoState(mapData) {
   state.mode = "select";
   state.connectFromNodeId = null;
   state.pasteCount = 0;
+  resetHistoryWithCurrentMap();
 }
 
 function persist() {
   if (!state.currentProjectId) return;
+
+  const currentSnapshot = mapSnapshotString();
+  if (!state.history.suppress) {
+    if (state.history.lastSnapshot === null) {
+      state.history.lastSnapshot = currentSnapshot;
+    } else if (currentSnapshot !== state.history.lastSnapshot) {
+      state.history.undoStack.push(state.history.lastSnapshot);
+      if (state.history.undoStack.length > 100) state.history.undoStack.shift();
+      state.history.redoStack = [];
+      state.history.lastSnapshot = currentSnapshot;
+    }
+  } else {
+    state.history.lastSnapshot = currentSnapshot;
+  }
+  updateHistoryButtons();
+
   const idx = state.projects.findIndex((p) => p.id === state.currentProjectId);
   if (idx < 0) return;
   state.projects[idx].map = serializeMap();
@@ -1121,6 +1212,7 @@ function handleKeydown(event) {
   if (isFormField(event.target)) return;
   const key = event.key.toLowerCase();
   const withMeta = event.metaKey || event.ctrlKey;
+  const isMac = navigator.platform.toUpperCase().includes("MAC");
 
   if (key === "enter") {
     event.preventDefault();
@@ -1134,6 +1226,22 @@ function handleKeydown(event) {
         persist();
       }
     }
+    return;
+  }
+
+  if (withMeta && key === "z") {
+    event.preventDefault();
+    if (event.shiftKey) {
+      redo();
+    } else {
+      undo();
+    }
+    return;
+  }
+
+  if (!isMac && withMeta && key === "y") {
+    event.preventDefault();
+    redo();
     return;
   }
 
@@ -1550,6 +1658,8 @@ function bindEvents() {
   deleteProjectBtn.addEventListener("click", () => { void deleteProject(); });
 
   addNodeBtn.addEventListener("click", addNode);
+  undoBtn.addEventListener("click", undo);
+  redoBtn.addEventListener("click", redo);
 
   connectModeBtn.addEventListener("click", () => {
     state.mode = state.mode === "connect" ? "select" : "connect";
